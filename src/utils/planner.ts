@@ -162,3 +162,123 @@ export function isValidDeadline(deadline: string): boolean {
   const deadlineDate = new Date(deadline);
   return deadlineDate > today;
 }
+
+export async function reschedulePlan(
+  originalTask: TaskInput,
+  incompleteDays: ScheduleItem[]
+): Promise<ScheduleItem[]> {
+  if (!apiKey) {
+    console.warn('No Gemini API key found, using mock data');
+    return generateMockReschedulePlan(originalTask, incompleteDays);
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+
+  const incompleteGoals = incompleteDays.map(d => d.goal).join(', ');
+  const daysRemaining = Math.max(getDaysRemaining(originalTask.deadline), 1);
+
+  const prompt = `This is an emergency reschedule. The user has fallen behind on their task: ${originalTask.name}.
+Description: ${originalTask.description || 'No additional description provided'}.
+Deadline: ${originalTask.deadline}.
+Days remaining: ${daysRemaining}.
+Incomplete goals that need to be covered: ${incompleteGoals}.
+I can work ${originalTask.hoursPerDay} hours per day.
+Today is ${todayStr}.
+
+Create a COMPRESSED, AGGRESSIVE plan to catch up. Be ruthless with prioritization. Combine incomplete work with remaining tasks. The user is behind schedule and needs an achievable but intensive plan.
+
+Return ONLY a valid JSON array (no markdown, no code blocks). Each object must have exactly these fields:
+{
+  "day": number,
+  "date": "Day Mon DD" format,
+  "goal": "clear, actionable objective",
+  "hours": number,
+  "isToday": boolean,
+  "warning": boolean,
+  "isBuffer": boolean
+}
+
+JSON array only, no other text:`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = result.response;
+    const text = response.text();
+
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.slice(7);
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.slice(3);
+    }
+    if (cleanedText.endsWith('```')) {
+      cleanedText = cleanedText.slice(0, -3);
+    }
+    cleanedText = cleanedText.trim();
+
+    const schedule: ScheduleItem[] = JSON.parse(cleanedText);
+    return schedule.map(item => ({ ...item, completed: false }));
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    return generateMockReschedulePlan(originalTask, incompleteDays);
+  }
+}
+
+function generateMockReschedulePlan(
+  originalTask: TaskInput,
+  incompleteDays: ScheduleItem[]
+): ScheduleItem[] {
+  const today = new Date();
+  const deadline = new Date(originalTask.deadline);
+  const daysRemaining = Math.max(
+    Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
+    1
+  );
+
+  const hoursPerDay = Math.min(originalTask.hoursPerDay * 1.5, 12);
+  const schedule: ScheduleItem[] = [];
+
+  for (let i = 0; i < daysRemaining; i++) {
+    const date = new Date(today);
+    date.setDate(date.getDate() + i);
+
+    const dateStr = date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const isLastDay = i === daysRemaining - 1;
+
+    let goal: string;
+    if (i === 0 && incompleteDays.length > 0) {
+      goal = `Catch up: ${incompleteDays.slice(0, 2).map(d => d.goal.substring(0, 30)).join(' + ')}`;
+    } else if (isLastDay) {
+      goal = 'Final review and submission';
+    } else {
+      const incompleteGoal = incompleteDays[i]?.goal || 'Continue work on remaining tasks';
+      goal = `${incompleteGoal.substring(0, 50)}`;
+    }
+
+    schedule.push({
+      day: i + 1,
+      date: dateStr,
+      goal,
+      hours: Math.round(hoursPerDay * 10) / 10,
+      isToday: i === 0,
+      warning: true,
+      isBuffer: false,
+      completed: false
+    });
+  }
+
+  return schedule;
+}

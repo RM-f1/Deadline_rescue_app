@@ -1,5 +1,5 @@
-import { Calendar, Clock, Loader2, Sparkles, Target } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, Calendar, Clock, Loader2, Sparkles, Target } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { TaskInput } from '../utils/planner';
 
 interface TaskFormProps {
@@ -18,6 +18,16 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
   );
   const [hoursPerDay, setHoursPerDay] = useState(initialTask?.hoursPerDay || 4);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const isTightDeadline = useMemo(() => {
+    if (!deadline) return false;
+    const deadlineDate = new Date(deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    const daysUntil = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return daysUntil < 2;
+  }, [deadline]);
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
@@ -131,6 +141,12 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
             aria-invalid={!!errors.deadline}
             aria-describedby={errors.deadline ? 'deadline-error' : undefined}
           />
+          {isTightDeadline && !errors.deadline && (
+            <div className="mt-2 flex items-center gap-2 text-amber-600 text-sm">
+              <AlertTriangle className="w-4 h-4" />
+              <span>Very tight deadline! We'll generate a compressed emergency plan.</span>
+            </div>
+          )}
           {errors.deadline && (
             <p id="deadline-error" className="mt-1 text-sm text-red-500">
               {errors.deadline}

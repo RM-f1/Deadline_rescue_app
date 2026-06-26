@@ -13,11 +13,14 @@ export default function ScheduleCard({ item, index, onToggle, darkMode }: Schedu
 
   return (
     <div
-      className={`relative flex items-start gap-4 p-5 rounded-xl transition-all duration-300 ${
+      className={`relative flex items-start gap-4 p-5 rounded-xl transition-all duration-300 transform hover:-translate-y-1 ${
         darkMode
-          ? 'bg-gray-800/70 border border-gray-700 hover:bg-gray-800'
-          : 'bg-white shadow-md border border-gray-100 hover:shadow-lg'
+          ? 'bg-gray-800/70 border border-gray-700 hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/50'
+          : 'bg-white shadow-md border border-gray-100 hover:shadow-xl hover:shadow-blue-100'
       } ${isCompleted ? 'opacity-70' : ''}`}
+      style={{
+        animation: `fadeInUp 0.4s ease-out ${index * 0.1}s both`
+      }}
     >
       <button
         onClick={() => onToggle(index)}

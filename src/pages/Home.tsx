@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Calendar, Clock, FileQuestion, Info, Loader2, Sparkles, Zap } from 'lucide-react';
+import { Calendar, CalendarDays, Clock, Download, FileQuestion, Info, Loader2, RefreshCw, Sparkles, X, Zap } from 'lucide-react';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import ProgressBar from '../components/ProgressBar';
 import Timeline from '../components/Timeline';
 import TaskForm from '../components/TaskForm';
 import type { ScheduleItem, TaskInput } from '../utils/planner';
-import { generatePlan, getDaysRemaining } from '../utils/planner';
+import { generatePlan, getDaysRemaining, reschedulePlan } from '../utils/planner';
+import { downloadICS } from '../utils/calendar';
 
 const STORAGE_KEY = 'deadline-rescue-data';
 
@@ -24,7 +25,7 @@ export default function Home() {
       const data: SavedData = JSON.parse(saved);
       return data.darkMode;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return window.matchMedia('(prefer-color-scheme: dark)').matches;
   });
 
   const [task, setTask] = useState<TaskInput | null>(() => {
@@ -46,8 +47,45 @@ export default function Home() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [showToast, setShowToast] = useState<string | null>(null);
+  const [showWarningBanner, setShowWarningBanner] = useState(true);
+  const [showBehindBanner, setShowBehindBanner] = useState(true);
+  const [isRescheduling, setIsRescheduling] = useState(false);
 
-  // Persist to localStorage
+  const scheduleRef = useRef<HTMLDivElement>(null);
+
+  const todayStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+
+  const todayIndex = schedule.findIndex(item => item.date === todayStr);
+  const previousIncomplete = schedule.filter((item, index) => {
+    if (index >= todayIndex) return false;
+    return !item.completed;
+  });
+  const incompleteCount = previousIncomplete.length;
+
+  const todayItem = todayIndex >= 0 ? schedule[todayIndex] : null;
+  const todayIncomplete = todayItem && !todayItem.completed;
+  const hour = new Date().getHours();
+  const isAfter6PM = hour >= 18;
+
+  const scheduleStatus: 'on-track' | 'behind' | null =
+    schedule.length > 0 ? (incompleteCount === 0 && (!todayIncomplete || !isAfter6PM) ? 'on-track' : 'behind') : null;
+
+  useEffect(() => {
+    if (schedule.length > 0 && showWarningBanner && todayIncomplete && isAfter6PM) {
+      setShowWarningBanner(true);
+    }
+  }, [schedule, todayIncomplete, isAfter6PM]);
+
+  const toast = useCallback((message: string) => {
+    setShowToast(message);
+    setTimeout(() => setShowToast(null), 4000);
+  }, []);
+
   useEffect(() => {
     if (task && schedule.length > 0) {
       const data: SavedData = { task, schedule, darkMode };
@@ -55,12 +93,14 @@ export default function Home() {
     }
   }, [task, schedule, darkMode]);
 
-  // Toggle dark mode
+  useEffect(() => {
+    scheduleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [schedule.length]);
+
   const toggleDarkMode = useCallback(() => {
     setDarkMode((prev) => !prev);
   }, []);
 
-  // Handle form submission
   const handleSubmit = useCallback(async (newTask: TaskInput) => {
     setIsLoading(true);
     setTask(newTask);
@@ -75,7 +115,6 @@ export default function Home() {
     }
   }, []);
 
-  // Toggle task completion
   const handleToggle = useCallback((index: number) => {
     setSchedule((prev) => {
       const updated = [...prev];
@@ -84,12 +123,10 @@ export default function Home() {
     });
   }, []);
 
-  // Check for celebration
   useEffect(() => {
     if (schedule.length > 0) {
       const allCompleted = schedule.every((item) => item.completed);
       if (allCompleted) {
-        // Trigger confetti
         const duration = 3000;
         const animationEnd = Date.now() + duration;
         const colors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444'];
@@ -122,30 +159,127 @@ export default function Home() {
     }
   }, [schedule]);
 
-  // Regenerate plan
   const handleRegenerate = useCallback(() => {
     if (task) {
       handleSubmit(task);
     }
   }, [task, handleSubmit]);
 
-  // Print handler
+  const handleDownload = useCallback(() => {
+    if (schedule.length > 0) {
+      downloadICS(schedule);
+      toast('Calendar file downloaded! Open it to import into Google Calendar, Apple Calendar, or Outlook.');
+    }
+  }, [schedule, toast]);
+
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
 
-  // Calculate stats
+  const handleReschedule = useCallback(async () => {
+    if (!task) return;
+    setIsRescheduling(true);
+    try {
+      const incompleteDays = schedule.filter(item => !item.completed);
+      const newSchedule = await reschedulePlan(task, incompleteDays);
+      setSchedule(newSchedule);
+      toast('Schedule updated! You have a new compressed plan.');
+    } catch (error) {
+      console.error('Failed to reschedule:', error);
+    } finally {
+      setIsRescheduling(false);
+    }
+  }, [task, schedule, toast]);
+
   const completedCount = schedule.filter((item) => item.completed).length;
   const daysRemaining = task ? getDaysRemaining(task.deadline) : 0;
 
-  // Apply dark mode to document
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode ? 'dark bg-gray-950' : 'bg-gray-50'}`}>
-      <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      <Navbar darkMode={darkMode} toggleDarkMode={toggleDarkMode} scheduleStatus={scheduleStatus} />
+
+      {showToast && (
+        <div className="fixed top-20 right-4 z-50 animate-fade-in">
+          <div
+            className={`px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 ${
+              darkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+            }`}
+          >
+            <CalendarDays className="w-5 h-5 text-blue-500" />
+            <span className="text-sm font-medium">{showToast}</span>
+          </div>
+        </div>
+      )}
+
+      {schedule.length > 0 && todayIncomplete && isAfter6PM && showWarningBanner && (
+        <div className="fixed top-16 left-0 right-0 z-40 animate-fade-in">
+          <div
+            className={`px-4 py-4 flex items-center justify-between gap-4 shadow-lg ${
+              darkMode ? 'bg-amber-900/90' : 'bg-amber-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <p className={`text-sm font-medium ${darkMode ? 'text-amber-200' : 'text-amber-800'}`}>
+                You haven't completed today's task yet! You're at risk of falling behind.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowWarningBanner(false)}
+              className={`p-1 rounded-full hover:bg-amber-700/30 ${darkMode ? 'text-amber-300' : 'text-amber-700'}`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {schedule.length > 0 && incompleteCount >= 2 && showBehindBanner && (
+        <div className="fixed top-16 left-0 right-0 z-40 animate-fade-in" style={{ top: todayIncomplete && isAfter6PM && showWarningBanner ? '6.5rem' : '4rem' }}>
+          <div
+            className={`px-4 py-4 flex items-center justify-between gap-4 shadow-lg ${
+              darkMode ? 'bg-red-900/90' : 'bg-red-100'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🔄</span>
+              <p className={`text-sm font-medium ${darkMode ? 'text-red-200' : 'text-red-800'}`}>
+                You're falling behind! Click Reschedule to get an updated plan.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleReschedule}
+                disabled={isRescheduling}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+                  isRescheduling
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : darkMode
+                    ? 'bg-red-700 text-white hover:bg-red-600'
+                    : 'bg-red-500 text-white hover:bg-red-600'
+                }`}
+              >
+                {isRescheduling ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Reschedule
+              </button>
+              <button
+                onClick={() => setShowBehindBanner(false)}
+                className={`p-1 rounded-full hover:bg-red-700/30 ${darkMode ? 'text-red-300' : 'text-red-700'}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section */}
       <header className={`pt-24 pb-12 px-4 sm:px-6 lg:px-8 ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-b from-blue-50 to-white'}`}>
@@ -290,12 +424,32 @@ export default function Home() {
 
             {/* Schedule Items */}
             <div
+              ref={scheduleRef}
               className={`rounded-2xl p-6 sm:p-8 ${
                 darkMode
                   ? 'bg-gray-900 border border-gray-800'
                   : 'bg-white shadow-xl border border-gray-100'
               }`}
             >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                  <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Your Action Plan
+                  </h2>
+                </div>
+                <button
+                  onClick={handleDownload}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    darkMode
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  <Download className="w-4 h-4" />
+                  Add to Calendar
+                </button>
+              </div>
               <Timeline schedule={schedule} onToggle={handleToggle} darkMode={darkMode} />
             </div>
 
