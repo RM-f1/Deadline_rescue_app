@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
-import { Calendar, CalendarDays, Clock, Download, FileQuestion, Info, Loader2, RefreshCw, Sparkles, X, Zap } from 'lucide-react';
+import { Calendar, CalendarDays, Clock, Download, FileQuestion, Info, Loader2, RefreshCw, Sparkles, X } from 'lucide-react';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
 import ProgressBar from '../components/ProgressBar';
 import Timeline from '../components/Timeline';
 import TaskForm from '../components/TaskForm';
+import StatsDashboard from '../components/StatsDashboard';
 import type { ScheduleItem, TaskInput } from '../utils/planner';
 import { generatePlan, getDaysRemaining, reschedulePlan } from '../utils/planner';
 import { downloadICS } from '../utils/calendar';
@@ -25,7 +26,7 @@ export default function Home() {
       const data: SavedData = JSON.parse(saved);
       return data.darkMode;
     }
-    return window.matchMedia('(prefer-color-scheme: dark)').matches;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
   const [task, setTask] = useState<TaskInput | null>(() => {
@@ -193,6 +194,7 @@ export default function Home() {
 
   const completedCount = schedule.filter((item) => item.completed).length;
   const daysRemaining = task ? getDaysRemaining(task.deadline) : 0;
+  const totalHours = schedule.reduce((sum, item) => sum + item.hours, 0);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -219,7 +221,7 @@ export default function Home() {
         <div className="fixed top-16 left-0 right-0 z-40 animate-fade-in">
           <div
             className={`px-4 py-4 flex items-center justify-between gap-4 shadow-lg ${
-              darkMode ? 'bg-amber-900/90' : 'bg-amber-100'
+              darkMode ? 'bg-amber-900/90 backdrop-blur-md' : 'bg-amber-100'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -230,7 +232,7 @@ export default function Home() {
             </div>
             <button
               onClick={() => setShowWarningBanner(false)}
-              className={`p-1 rounded-full hover:bg-amber-700/30 ${darkMode ? 'text-amber-300' : 'text-amber-700'}`}
+              className={`p-2 rounded-full hover:bg-amber-700/30 min-w-[44px] min-h-[44px] flex items-center justify-center ${darkMode ? 'text-amber-300' : 'text-amber-700'}`}
             >
               <X className="w-5 h-5" />
             </button>
@@ -241,8 +243,8 @@ export default function Home() {
       {schedule.length > 0 && incompleteCount >= 2 && showBehindBanner && (
         <div className="fixed top-16 left-0 right-0 z-40 animate-fade-in" style={{ top: todayIncomplete && isAfter6PM && showWarningBanner ? '6.5rem' : '4rem' }}>
           <div
-            className={`px-4 py-4 flex items-center justify-between gap-4 shadow-lg ${
-              darkMode ? 'bg-red-900/90' : 'bg-red-100'
+            className={`px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg ${
+              darkMode ? 'bg-red-900/90 backdrop-blur-md' : 'bg-red-100'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -255,7 +257,7 @@ export default function Home() {
               <button
                 onClick={handleReschedule}
                 disabled={isRescheduling}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
+                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all min-h-[44px] ${
                   isRescheduling
                     ? 'bg-gray-400 cursor-not-allowed'
                     : darkMode
@@ -272,7 +274,7 @@ export default function Home() {
               </button>
               <button
                 onClick={() => setShowBehindBanner(false)}
-                className={`p-1 rounded-full hover:bg-red-700/30 ${darkMode ? 'text-red-300' : 'text-red-700'}`}
+                className={`p-2 rounded-full hover:bg-red-700/30 min-w-[44px] min-h-[44px] flex items-center justify-center ${darkMode ? 'text-red-300' : 'text-red-700'}`}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -281,31 +283,47 @@ export default function Home() {
         </div>
       )}
 
-      {/* Hero Section */}
-      <header className={`pt-24 pb-12 px-4 sm:px-6 lg:px-8 ${darkMode ? 'bg-gray-900' : 'bg-gradient-to-b from-blue-50 to-white'}`}>
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">
-            <Zap className="w-4 h-4" />
-            AI-Powered Task Planning
+      {/* Hero Section with Animated Gradient */}
+      <header className={`relative pt-24 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden ${
+        darkMode ? 'bg-gray-900' : ''
+      }`}>
+        {/* Animated Gradient Background */}
+        {!darkMode && (
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 animate-gradient-x" />
+        )}
+        {darkMode && (
+          <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900" />
+        )}
+
+        <div className="relative max-w-4xl mx-auto text-center">
+          <div className={`inline-flex items-center gap-2 mb-4 sm:mb-6 px-4 py-2 rounded-full text-sm font-medium animate-fade-in ${
+            darkMode
+              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              : 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border border-blue-200/50'
+          }`}>
+            <Sparkles className="w-4 h-4" />
+            Powered by Gemini AI
           </div>
           <h1
-            className={`text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 ${
+            className={`text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 animate-fade-in ${
               darkMode ? 'text-white' : 'text-gray-900'
             }`}
+            style={{ animationDelay: '0.1s', animationFillMode: 'both' }}
           >
-            Deadline Rescue{' '}
-            <span role="img" aria-label="alarm clock">
-              ⏰
+            Turn Panic Into a{' '}
+            <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Plan.
             </span>
           </h1>
           <p
-            className={`text-lg sm:text-xl mb-8 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+            className={`text-lg sm:text-xl lg:text-2xl mb-8 animate-fade-in ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}
+            style={{ animationDelay: '0.2s', animationFillMode: 'both' }}
           >
-            Turn panic into a plan. Let AI break your tasks into daily action steps.
+            AI-powered scheduling that beats any deadline.
           </p>
 
           {/* Features */}
-          <div className="flex flex-wrap items-center justify-center gap-4 mb-8">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-4 animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
             {[
               { icon: Calendar, text: 'Day-by-Day Planning' },
               { icon: Sparkles, text: 'AI-Powered Scheduling' },
@@ -313,12 +331,12 @@ export default function Home() {
             ].map(({ icon: Icon, text }) => (
               <div
                 key={text}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full ${
-                  darkMode ? 'bg-gray-800 text-gray-300' : 'bg-white text-gray-600 shadow-sm'
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 ${
+                  darkMode ? 'bg-gray-800/80 text-gray-300 border border-gray-700' : 'bg-white/80 text-gray-600 shadow-sm border border-gray-100'
                 }`}
               >
                 <Icon className="w-4 h-4" />
-                <span className="text-sm font-medium">{text}</span>
+                <span className="text-xs sm:text-sm font-medium">{text}</span>
               </div>
             ))}
           </div>
@@ -329,22 +347,22 @@ export default function Home() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {/* Task Form Card */}
         <div
-          className={`rounded-2xl p-6 sm:p-8 mb-8 ${
+          className={`rounded-2xl p-5 sm:p-8 mb-8 transition-all duration-300 ${
             darkMode
-              ? 'bg-gray-900 border border-gray-800'
+              ? 'bg-gray-900/80 border border-gray-800 shadow-xl shadow-gray-900/50'
               : 'bg-white shadow-xl border border-gray-100'
           }`}
         >
           <div className="flex items-center gap-3 mb-6">
             <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                darkMode ? 'bg-blue-500/20' : 'bg-blue-100'
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${
+                darkMode ? 'bg-blue-500/20' : 'bg-gradient-to-br from-blue-100 to-indigo-100'
               }`}
             >
               <Info className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
             </div>
             <div>
-              <h2 className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h2 className={`text-lg sm:text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 Enter Your Task
               </h2>
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -364,18 +382,18 @@ export default function Home() {
         {/* Empty State or Schedule */}
         {schedule.length === 0 ? (
           <div
-            className={`rounded-2xl p-12 text-center ${
+            className={`rounded-2xl p-8 sm:p-12 text-center transition-all duration-300 ${
               darkMode
-                ? 'bg-gray-900 border border-gray-800'
+                ? 'bg-gray-900/80 border border-gray-800'
                 : 'bg-white shadow-xl border border-gray-100'
             }`}
           >
             <div
-              className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
-                darkMode ? 'bg-gray-800' : 'bg-gray-100'
+              className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center ${
+                darkMode ? 'bg-gray-800' : 'bg-gradient-to-br from-blue-100 to-indigo-100'
               }`}
             >
-              <FileQuestion className={`w-8 h-8 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`} />
+              <FileQuestion className={`w-8 h-8 ${darkMode ? 'text-gray-600' : 'text-blue-500'}`} />
             </div>
             <h3 className={`text-lg font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
               No plan yet
@@ -387,7 +405,7 @@ export default function Home() {
         ) : (
           <>
             {/* Progress Section */}
-            <div className="mb-8">
+            <div className="mb-6">
               <ProgressBar
                 completed={completedCount}
                 total={schedule.length}
@@ -396,6 +414,16 @@ export default function Home() {
                 darkMode={darkMode}
               />
             </div>
+
+            {/* Stats Dashboard */}
+            <StatsDashboard
+              totalDays={schedule.length}
+              daysCompleted={completedCount}
+              daysRemaining={daysRemaining}
+              schedule={schedule}
+              totalHours={totalHours}
+              darkMode={darkMode}
+            />
 
             {/* Warning Banner */}
             {schedule.some((item) => item.warning) && (
@@ -425,13 +453,13 @@ export default function Home() {
             {/* Schedule Items */}
             <div
               ref={scheduleRef}
-              className={`rounded-2xl p-6 sm:p-8 ${
+              className={`rounded-2xl p-4 sm:p-6 lg:p-8 ${
                 darkMode
-                  ? 'bg-gray-900 border border-gray-800'
+                  ? 'bg-gray-900/80 border border-gray-800'
                   : 'bg-white shadow-xl border border-gray-100'
               }`}
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-2">
                   <CalendarDays className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                   <h2 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
@@ -440,10 +468,10 @@ export default function Home() {
                 </div>
                 <button
                   onClick={handleDownload}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 min-h-[44px] ${
                     darkMode
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/30'
+                      : 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white hover:shadow-lg hover:shadow-blue-500/30 hover:-translate-y-0.5'
                   }`}
                 >
                   <Download className="w-4 h-4" />
@@ -465,12 +493,14 @@ export default function Home() {
 
         {/* Info Section */}
         <div
-          className={`mt-8 rounded-xl p-6 ${
-            darkMode ? 'bg-gray-900 border border-gray-800' : 'bg-blue-50 border border-blue-100'
+          className={`mt-8 rounded-xl p-5 sm:p-6 transition-all duration-300 ${
+            darkMode ? 'bg-gray-900/80 border border-gray-800' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100'
           }`}
         >
           <div className="flex items-start gap-3">
-            <Info className={`w-5 h-5 flex-shrink-0 mt-0.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+            <div className={`p-2 rounded-lg ${darkMode ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+              <Info className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+            </div>
             <div>
               <h4 className={`font-semibold mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                 How it works

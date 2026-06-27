@@ -57,9 +57,7 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!validate()) return;
-
     onSubmit({
       name: name.trim(),
       description: description.trim(),
@@ -69,78 +67,80 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
     });
   };
 
-  const inputBase = `w-full px-4 py-3 rounded-xl transition-all duration-200 ${
+  const inputBase = `w-full px-4 py-3.5 rounded-xl transition-all duration-300 ${
     darkMode
       ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500/20'
-      : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20'
-  } border focus:outline-none focus:ring-4`;
+      : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-blue-500/20 focus:bg-white'
+  } border-2 focus:outline-none focus:ring-4`;
+
+  const labelBase = `absolute left-4 transition-all duration-300 pointer-events-none ${
+    darkMode ? 'text-gray-500' : 'text-gray-400'
+  }`;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label
-          htmlFor="task-name"
-          className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}
-        >
-          <Target className="w-4 h-4 inline mr-1" />
-          Task Name
-        </label>
+      <div className="relative">
         <input
           id="task-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g., Complete React project presentation"
-          className={`${inputBase} ${errors.name ? 'border-red-500' : ''}`}
+          placeholder=" "
+          className={`${inputBase} pt-5 pb-2 ${errors.name ? 'border-red-500' : ''}`}
           aria-invalid={!!errors.name}
           aria-describedby={errors.name ? 'name-error' : undefined}
         />
+        <label
+          htmlFor="task-name"
+          className={`${labelBase} ${name ? 'top-2 text-xs font-medium' : 'top-4 text-sm'}`}
+        >
+          <Target className="w-3 h-3 inline mr-1" />
+          Task Name
+        </label>
         {errors.name && (
-          <p id="name-error" className="mt-1 text-sm text-red-500">
+          <p id="name-error" className="mt-1.5 text-sm text-red-500">
             {errors.name}
           </p>
         )}
       </div>
 
-      <div>
-        <label
-          htmlFor="task-description"
-          className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}
-        >
-          Task Description
-          <span className={`ml-1 text-xs font-normal ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-            (optional)
-          </span>
-        </label>
+      <div className="relative">
         <textarea
           id="task-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Add any relevant details or context..."
+          placeholder=" "
           rows={3}
-          className={`${inputBase} resize-none`}
+          className={`${inputBase} pt-5 pb-2 resize-none`}
         />
+        <label
+          htmlFor="task-description"
+          className={`${labelBase} ${description ? 'top-2 text-xs font-medium' : 'top-4 text-sm'}`}
+        >
+          Task Description
+          <span className="ml-1 text-xs opacity-60">(optional)</span>
+        </label>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label
-            htmlFor="deadline"
-            className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}
-          >
-            <Calendar className="w-4 h-4 inline mr-1" />
-            Deadline
-          </label>
+        <div className="relative">
           <input
             id="deadline"
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
-            className={`${inputBase} ${errors.deadline ? 'border-red-500' : ''}`}
+            className={`${inputBase} pt-5 pb-2 ${errors.deadline ? 'border-red-500' : ''}`}
             aria-invalid={!!errors.deadline}
             aria-describedby={errors.deadline ? 'deadline-error' : undefined}
           />
+          <label
+            htmlFor="deadline"
+            className={`${labelBase} top-2 text-xs font-medium`}
+          >
+            <Calendar className="w-3 h-3 inline mr-1" />
+            Deadline
+          </label>
           {isTightDeadline && !errors.deadline && (
             <div className="mt-2 flex items-center gap-2 text-amber-600 text-sm">
               <AlertTriangle className="w-4 h-4" />
@@ -148,36 +148,39 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
             </div>
           )}
           {errors.deadline && (
-            <p id="deadline-error" className="mt-1 text-sm text-red-500">
+            <p id="deadline-error" className="mt-1.5 text-sm text-red-500">
               {errors.deadline}
             </p>
           )}
         </div>
 
-        <div>
-          <label
-            htmlFor="hours-per-day"
-            className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}
-          >
-            <Clock className="w-4 h-4 inline mr-1" />
-            Hours Per Day
-          </label>
-          <input
-            id="hours-per-day"
-            type="number"
-            value={hoursPerDay}
-            onChange={(e) => setHoursPerDay(Number(e.target.value))}
-            min={1}
-            max={16}
-            className={`${inputBase} ${errors.hoursPerDay ? 'border-red-500' : ''}`}
-            aria-invalid={!!errors.hoursPerDay}
-            aria-describedby={errors.hoursPerDay ? 'hours-error' : undefined}
-          />
-          {errors.hoursPerDay && (
-            <p id="hours-error" className="mt-1 text-sm text-red-500">
-              {errors.hoursPerDay}
-            </p>
-          )}
+        <div className="relative">
+          <div className={`${inputBase} pt-5 pb-2 px-4`}>
+            <label
+              htmlFor="hours-per-day"
+              className={`${labelBase} top-2 text-xs font-medium`}
+            >
+              <Clock className="w-3 h-3 inline mr-1" />
+              Hours Per Day
+            </label>
+            <div className="flex items-center gap-4 mt-2">
+              <input
+                type="range"
+                min="1"
+                max="12"
+                value={hoursPerDay}
+                onChange={(e) => setHoursPerDay(Number(e.target.value))}
+                className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+              <span
+                className={`text-lg font-bold min-w-[3rem] text-right ${
+                  darkMode ? 'text-white' : 'text-gray-900'
+                }`}
+              >
+                {hoursPerDay}h
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -187,22 +190,22 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
         >
           Estimated Difficulty
         </label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {(['Easy', 'Medium', 'Hard'] as const).map((level) => (
             <button
               key={level}
               type="button"
               onClick={() => setDifficulty(level)}
-              className={`py-3 px-4 rounded-xl font-medium transition-all duration-200 ${
+              className={`flex-1 min-w-[80px] py-3 px-4 rounded-xl font-medium transition-all duration-300 min-h-[44px] ${
                 difficulty === level
                   ? level === 'Easy'
-                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                    ? 'bg-green-500 text-white shadow-lg shadow-green-500/30 scale-105'
                     : level === 'Medium'
-                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                    : 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30 scale-105'
+                    : 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105'
                   : darkMode
-                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:scale-105'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
               }`}
             >
               {level}
@@ -214,10 +217,10 @@ export default function TaskForm({ onSubmit, isLoading, darkMode, initialTask }:
       <button
         type="submit"
         disabled={isLoading}
-        className={`w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 ${
+        className={`w-full py-4 rounded-xl font-semibold text-white transition-all duration-300 min-h-[52px] ${
           isLoading
             ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5'
+            : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5'
         }`}
       >
         {isLoading ? (

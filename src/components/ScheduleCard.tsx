@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Clock, Coffee, Rocket, Star } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, Coffee, Rocket, Star } from 'lucide-react';
 import type { ScheduleItem } from '../utils/planner';
 
 interface ScheduleCardProps {
@@ -6,17 +6,97 @@ interface ScheduleCardProps {
   index: number;
   onToggle: (index: number) => void;
   darkMode: boolean;
+  isMobile?: boolean;
+  isDefaultExpanded?: boolean;
+  onExpand?: () => void;
 }
 
-export default function ScheduleCard({ item, index, onToggle, darkMode }: ScheduleCardProps) {
+export default function ScheduleCard({
+  item,
+  index,
+  onToggle,
+  darkMode,
+  isMobile,
+  isDefaultExpanded,
+  onExpand
+}: ScheduleCardProps) {
   const isCompleted = item.completed;
+
+  const todayStr = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric'
+  });
+  const isToday = item.date === todayStr;
+  const isPast = !isCompleted && !isToday && index < (isToday ? 100 : 0);
+
+  const borderColors = isCompleted
+    ? 'border-l-green-500'
+    : isToday
+    ? 'border-l-blue-500'
+    : isPast
+    ? 'border-l-red-500'
+    : 'border-l-gray-300 dark:border-l-gray-600';
+
+  if (isMobile && !isDefaultExpanded) {
+    return (
+      <div
+        className={`relative rounded-xl overflow-hidden transition-all duration-300 ${
+          darkMode ? 'bg-gray-800/70 border border-gray-700' : 'bg-white shadow-md border border-gray-100'
+        } ${borderColors} border-l-4`}
+        style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.1}s both` }}
+      >
+        <button
+          onClick={onExpand}
+          className={`w-full p-4 flex items-center justify-between min-h-[52px] ${
+            isCompleted ? 'opacity-70' : ''
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle(index);
+              }}
+              className={`flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center min-w-[44px] min-h-[44px] flex items-center justify-center ${
+                isCompleted
+                  ? 'bg-green-500 border-green-500'
+                  : darkMode
+                  ? 'border-gray-600 hover:border-blue-500'
+                  : 'border-gray-300 hover:border-blue-500'
+              }`}
+              aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+            >
+              {isCompleted && <CheckCircle2 className="w-4 h-4 text-white" />}
+            </button>
+            <span className={`font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              Day {item.day}
+            </span>
+            {isToday && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white animate-pulse">
+                <Rocket className="w-3 h-3" />
+                Today
+              </span>
+            )}
+            {isCompleted && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500 text-white">
+                <Star className="w-3 h-3" />
+                Done
+              </span>
+            )}
+          </div>
+          <ChevronDown className={`w-5 h-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
-      className={`relative flex items-start gap-4 p-5 rounded-xl transition-all duration-300 transform hover:-translate-y-1 ${
+      className={`relative flex items-start gap-4 p-4 sm:p-5 rounded-xl transition-all duration-300 transform hover:-translate-y-1 ${
         darkMode
-          ? 'bg-gray-800/70 border border-gray-700 hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/50'
-          : 'bg-white shadow-md border border-gray-100 hover:shadow-xl hover:shadow-blue-100'
+          ? `bg-gray-800/70 border border-gray-700 hover:bg-gray-800 hover:shadow-xl hover:shadow-gray-900/50 ${borderColors} border-l-4`
+          : `bg-white shadow-md border border-gray-100 hover:shadow-xl hover:shadow-blue-100 ${borderColors} border-l-4`
       } ${isCompleted ? 'opacity-70' : ''}`}
       style={{
         animation: `fadeInUp 0.4s ease-out ${index * 0.1}s both`
@@ -24,12 +104,12 @@ export default function ScheduleCard({ item, index, onToggle, darkMode }: Schedu
     >
       <button
         onClick={() => onToggle(index)}
-        className={`flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-200 flex items-center justify-center ${
+        className={`flex-shrink-0 w-6 h-6 rounded-full border-2 transition-all duration-300 flex items-center justify-center min-w-[44px] min-h-[44px] flex items-center justify-center ${
           isCompleted
-            ? 'bg-green-500 border-green-500'
+            ? 'bg-green-500 border-green-500 scale-110'
             : darkMode
-            ? 'border-gray-600 hover:border-blue-500'
-            : 'border-gray-300 hover:border-blue-500'
+            ? 'border-gray-600 hover:border-blue-500 hover:scale-110'
+            : 'border-gray-300 hover:border-blue-500 hover:scale-110'
         }`}
         aria-label={isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
       >
@@ -58,7 +138,7 @@ export default function ScheduleCard({ item, index, onToggle, darkMode }: Schedu
           </span>
 
           {item.isToday && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white shadow-lg shadow-blue-500/30">
               <Rocket className="w-3 h-3" />
               Start Here
             </span>
