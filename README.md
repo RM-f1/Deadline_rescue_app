@@ -76,4 +76,4 @@ firebase deploy
 
 ---
 
-Built for the BlockseBlock Hackathon 2025.
+
